@@ -13,11 +13,6 @@ struct AuthView: View {
     var body: some View {
         NavigationView {
             VStack {
-                Text(isLogin ? "Partner Login" : "Chef Registration")
-                    .font(.largeTitle)
-                    .bold()
-                    .padding(.bottom, 40)
-
                 if isLogin {
                     LoginView()
                 } else {

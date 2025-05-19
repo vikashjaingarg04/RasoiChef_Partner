@@ -48,228 +48,154 @@ enum RegistrationStep: Int, CaseIterable {
 }
 
 struct SignupView: View {
-    @State private var currentStep: RegistrationStep = .restaurantInfo
+    @State private var currentStep: Int = 0
+    @State private var showSectionPage: Bool = false
     
-    // Restaurant Info
-    @State private var restaurantName = ""
-    @State private var location = ""
-    @State private var contactNumber = ""
-    
-    // Menu & Operations
-    @State private var cuisineType = ""
-    @State private var operationHours = ""
-    @State private var avgMealCost = ""
-    
-    // Documents
-    @State private var hasLicense = false
-    @State private var hasFoodSafetyCert = false
+    let steps: [StepData] = [
+        StepData(icon: "bell", title: "Restaurant information", subtitle: "Name, location and contact number"),
+        StepData(icon: "menucard", title: "Menu and operational details", subtitle: nil),
+        StepData(icon: "folder", title: "Restaurant documents", subtitle: nil)
+    ]
     
     var body: some View {
-        VStack(spacing: 20) {
-            // Progress bar and step indicator
-            progressView
-            
-            // Current step form
-            formForCurrentStep
-                .transition(.opacity)
-                .animation(.easeInOut, value: currentStep)
-            
-            // Navigation buttons
-            navigationButtons
+        NavigationView {
+            VStack(alignment: .leading, spacing: 0) {
+                VerticalStepper(steps: steps, currentStep: $currentStep, showSectionPage: $showSectionPage)
+                    .padding(.vertical)
+                Spacer()
+            }
+            .padding()
+            .background(Color.white.ignoresSafeArea())
+            .navigationBarHidden(true)
+            // Navigation destination for each section
+            .background(
+                NavigationLink(
+                    destination: sectionDestination(for: currentStep),
+                    isActive: $showSectionPage,
+                    label: { EmptyView() }
+                )
+                .hidden()
+            )
         }
-        .padding()
     }
     
-    // MARK: - Components
+    @ViewBuilder
+    private func sectionDestination(for step: Int) -> some View {
+        switch step {
+        case 0:
+            RestaurantInfoFormView()
+        case 1:
+            MenuDetailsFormView()
+        case 2:
+            DocumentsFormView()
+        default:
+            EmptyView()
+        }
+    }
+}
+
+struct StepData {
+    let icon: String
+    let title: String
+    let subtitle: String?
+}
+
+struct VerticalStepper: View {
+    let steps: [StepData]
+    @Binding var currentStep: Int
+    @Binding var showSectionPage: Bool
     
-    private var progressView: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text("Complete your registration")
-                .font(.title2)
-                .fontWeight(.bold)
-            
-            ZStack(alignment: .leading) {
-                Rectangle()
-                    .frame(height: 4)
-                    .foregroundColor(Color(.systemGray5))
-                
-                Rectangle()
-                    .frame(width: progressWidth, height: 4)
-                    .foregroundColor(.blue)
-            }
-            .cornerRadius(2)
-            
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 40) {
-                    ForEach(RegistrationStep.allCases, id: \.self) { step in
-                        StepIndicatorView(
-                            step: step,
-                            isActive: currentStep == step,
-                            isCompleted: step.rawValue < currentStep.rawValue
-                        )
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(0..<steps.count, id: \.self) { idx in
+                StepperRow(
+                    step: steps[idx],
+                    isActive: idx == currentStep,
+                    isCompleted: idx < currentStep,
+                    showContinue: idx == currentStep,
+                    onContinue: {
+                        showSectionPage = true
+                    }
+                )
+                if idx < steps.count - 1 {
+                    VStack {
+                        Rectangle()
+                            .fill(Color(.systemGray4))
+                            .frame(width: 3, height: 36)
+                            .padding(.leading, 21)
                     }
                 }
-                .padding(.vertical)
             }
         }
-        .padding(.bottom)
+        .padding(.top, 24)
     }
+}
+
+struct StepperRow: View {
+    let step: StepData
+    let isActive: Bool
+    let isCompleted: Bool
+    let showContinue: Bool
+    let onContinue: () -> Void
     
-    private var progressWidth: CGFloat {
-        let totalSteps = CGFloat(RegistrationStep.allCases.count)
-        let currentStepValue = CGFloat(currentStep.rawValue)
-        
-        // For first step, show some progress already
-        let progress = (currentStepValue + 0.5) / totalSteps
-        return UIScreen.main.bounds.width * 0.9 * progress
-    }
-    
-    private var formForCurrentStep: some View {
-        Group {
-            switch currentStep {
-            case .restaurantInfo:
-                restaurantInfoForm
-            case .menuAndOperations:
-                menuOperationsForm
-            case .restaurantDocuments:
-                documentsForm
+    var body: some View {
+        HStack(alignment: .top, spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(isActive ? Color.orange.opacity(0.15) : Color(.systemGray6))
+                    .frame(width: 42, height: 42)
+                Image(systemName: step.icon)
+                    .font(.system(size: 22))
+                    .foregroundColor(.orange)
             }
-        }
-        .frame(maxWidth: .infinity)
-    }
-    
-    private var restaurantInfoForm: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            Text("Restaurant Details")
-                .font(.headline)
-                .padding(.top)
-            
-            TextField("Restaurant Name", text: $restaurantName)
-                .textFieldStyle(RoundedTextFieldStyle())
-            
-            TextField("Location/Address", text: $location)
-                .textFieldStyle(RoundedTextFieldStyle())
-            
-            TextField("Contact Number", text: $contactNumber)
-                .keyboardType(.phonePad)
-                .textFieldStyle(RoundedTextFieldStyle())
-            
-            Spacer()
-        }
-    }
-    
-    private var menuOperationsForm: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            Text("Menu & Operations")
-                .font(.headline)
-                .padding(.top)
-            
-            TextField("Cuisine Type", text: $cuisineType)
-                .textFieldStyle(RoundedTextFieldStyle())
-            
-            TextField("Operation Hours (e.g., 9AM-10PM)", text: $operationHours)
-                .textFieldStyle(RoundedTextFieldStyle())
-            
-            TextField("Average Meal Cost", text: $avgMealCost)
-                .keyboardType(.decimalPad)
-                .textFieldStyle(RoundedTextFieldStyle())
-            
-            Spacer()
-        }
-    }
-    
-    private var documentsForm: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            Text("Required Documents")
-                .font(.headline)
-                .padding(.top)
-            
-            Toggle("Restaurant License", isOn: $hasLicense)
-                .padding()
-                .background(Color(.systemGray6))
-                .cornerRadius(8)
-            
-            Toggle("Food Safety Certificate", isOn: $hasFoodSafetyCert)
-                .padding()
-                .background(Color(.systemGray6))
-                .cornerRadius(8)
-            
-            Button(action: {
-                // Document upload action
-            }) {
-                HStack {
-                    Image(systemName: "plus")
-                    Text("Upload Documents")
+            VStack(alignment: .leading, spacing: 2) {
+                Text(step.title)
+                    .font(.system(size: 18, weight: isActive ? .semibold : .regular))
+                    .foregroundColor(isActive ? Color(red: 0.36, green: 0.44, blue: 0.18) : Color(.systemGray))
+                if isActive, let subtitle = step.subtitle {
+                    Text(subtitle)
+                        .font(.system(size: 14))
+                        .foregroundColor(Color(.systemGray))
                 }
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.blue)
-                .cornerRadius(8)
-            }
-            
-            Spacer()
-        }
-    }
-    
-    private var navigationButtons: some View {
-        HStack {
-            if currentStep != .restaurantInfo {
-                Button(action: { goToPreviousStep() }) {
-                    HStack {
-                        Image(systemName: "arrow.left")
-                        Text("Back")
+                if showContinue {
+                    Button(action: onContinue) {
+                        HStack(spacing: 2) {
+                            Text("Continue")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundColor(.blue)
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(.blue)
+                        }
                     }
-                    .foregroundColor(.blue)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.white)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.blue, lineWidth: 1)
-                    )
+                    .padding(.top, 2)
                 }
             }
-            
-            Button(action: { goToNextStep() }) {
-                Text(currentStep == RegistrationStep.allCases.last ? "Complete" : "Continue")
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.blue)
-                    .cornerRadius(8)
-            }
+            Spacer()
         }
-        .padding(.top)
+        .padding(.vertical, 8)
     }
-    
-    // MARK: - Navigation Functions
-    
-    private func goToNextStep() {
-        if let nextStepRaw = RegistrationStep(rawValue: currentStep.rawValue + 1) {
-            currentStep = nextStepRaw
-        } else {
-            // Handle completion - Registration finished
-            completeRegistration()
-        }
+}
+
+// Dummy destination views for navigation
+struct RestaurantInfoView: View {
+    var body: some View {
+        Text("Restaurant Info Details")
+            .navigationTitle("Restaurant Info")
     }
-    
-    private func goToPreviousStep() {
-        if let prevStepRaw = RegistrationStep(rawValue: currentStep.rawValue - 1) {
-            currentStep = prevStepRaw
-        }
+}
+
+struct MenuDetailsView: View {
+    var body: some View {
+        Text("Menu & Operational Details")
+            .navigationTitle("Menu & Details")
     }
-    
-    private func completeRegistration() {
-        print("Registration completed with:")
-        print("Restaurant: \(restaurantName)")
-        print("Location: \(location)")
-        print("Contact: \(contactNumber)")
-        print("Cuisine: \(cuisineType)")
-        print("Hours: \(operationHours)")
-        print("Avg Cost: \(avgMealCost)")
-        print("Has License: \(hasLicense)")
-        print("Has Food Safety: \(hasFoodSafetyCert)")
+}
+
+struct DocumentsView: View {
+    var body: some View {
+        Text("Restaurant Documents")
+            .navigationTitle("Documents")
     }
 }
 
@@ -322,5 +248,164 @@ struct RoundedTextFieldStyle: TextFieldStyle {
             .padding()
             .background(Color(.systemGray6))
             .cornerRadius(8)
+    }
+}
+
+// Section 1: Restaurant Info Form
+struct RestaurantInfoFormView: View {
+    @State private var restaurantName = ""
+    @State private var ownerName = ""
+    @State private var ownerEmail = ""
+    @State private var ownerPhone = ""
+    @State private var getUpdatesOnWhatsapp = true
+    @State private var primaryContact = ""
+    @State private var sameAsOwnerMobile = true
+    
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                // Restaurant Name Card
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Restaurant name")
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundColor(Color(.label))
+                        .padding(.bottom, 2)
+                    Text("Customers will see this name on RasoiChef")
+                        .font(.system(size: 15))
+                        .foregroundColor(Color(.systemGray))
+                        .padding(.bottom, 16)
+                    TextField("Restaurant name*", text: $restaurantName)
+                        .padding()
+                        .background(Color.white)
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color(.systemGray4), lineWidth: 1)
+                        )
+                        .font(.system(size: 17))
+                }
+                .padding(20)
+                .background(Color.white)
+                .cornerRadius(18)
+                .shadow(color: Color(.systemGray4).opacity(0.18), radius: 8, x: 0, y: 2)
+                
+                // Owner Details Card
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Owner details")
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundColor(Color(.label))
+                        .padding(.bottom, 2)
+                    Text("RasoiChef will use these details for all business communications and updates")
+                        .font(.system(size: 15))
+                        .foregroundColor(Color(.systemGray))
+                        .padding(.bottom, 16)
+                    HStack(spacing: 12) {
+                        TextField("Full name*", text: $ownerName)
+                            .padding()
+                            .background(Color.white)
+                            .cornerRadius(10)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(Color(.systemGray4), lineWidth: 1)
+                            )
+                        TextField("Email address*", text: $ownerEmail)
+                            .padding()
+                            .background(Color.white)
+                            .cornerRadius(10)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(Color(.systemGray4), lineWidth: 1)
+                            )
+                    }
+                    .font(.system(size: 16))
+                    .padding(.bottom, 12)
+                    HStack(spacing: 12) {
+                        HStack(spacing: 4) {
+                            Text("🇮🇳 +91")
+                                .font(.system(size: 16, weight: .medium))
+                                .padding(.leading, 12)
+                            Divider().frame(height: 24)
+                            TextField("Phone number*", text: $ownerPhone)
+                                .keyboardType(.numberPad)
+                                .padding(.vertical, 12)
+                                .padding(.horizontal, 4)
+                        }
+                        .background(Color.white)
+                        .cornerRadius(10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(Color(.systemGray4), lineWidth: 1)
+                        )
+                    
+                    
+                    }
+                    
+                    
+                }
+                .padding(20)
+                .background(Color.white)
+                .cornerRadius(18)
+                .shadow(color: Color(.systemGray4).opacity(0.18), radius: 8, x: 0, y: 2)
+            }
+            .padding()
+            .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        }
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationTitle("Restaurant information")
+    }
+}
+
+// Custom Checkbox Toggle Style
+struct CheckboxToggleStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack {
+            Image(systemName: configuration.isOn ? "checkmark.square.fill" : "square")
+                .foregroundColor(configuration.isOn ? .blue : .gray)
+                .onTapGesture { configuration.isOn.toggle() }
+            configuration.label
+        }
+    }
+}
+
+// Section 2: Menu & Operational Details
+struct MenuDetailsFormView: View {
+    @State private var cuisineType = ""
+    @State private var operationHours = ""
+    @State private var avgMealCost = ""
+    var body: some View {
+        Form {
+            Section(header: Text("Menu & Operations")) {
+                TextField("Cuisine Type", text: $cuisineType)
+                TextField("Operation Hours (e.g., 9AM-10PM)", text: $operationHours)
+                TextField("Average Meal Cost", text: $avgMealCost)
+                    .keyboardType(.decimalPad)
+            }
+        }
+        .navigationTitle("Menu and operational details")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+// Section 3: Documents Upload
+struct DocumentsFormView: View {
+    @State private var hasLicense = false
+    @State private var hasFoodSafetyCert = false
+    var body: some View {
+        Form {
+            Section(header: Text("Required Documents")) {
+                Toggle("Restaurant License", isOn: $hasLicense)
+                Toggle("Food Safety Certificate", isOn: $hasFoodSafetyCert)
+                Button(action: {
+                    // Document upload action
+                }) {
+                    HStack {
+                        Image(systemName: "plus")
+                        Text("Upload Documents")
+                    }
+                }
+            }
+        }
+        .navigationTitle("Restaurant documents")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
